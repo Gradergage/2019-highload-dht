@@ -37,7 +37,7 @@ public final class DAOFactory {
      * Construct a {@link DAO} instance.
      *
      * @param data local disk folder to persist the data to
-     * @return a storage instance
+     * @return a storage instance {@link DAOImplementation}
      */
     @NotNull
     public static DAO create(@NotNull final File data) throws IOException {
@@ -53,6 +53,6 @@ public final class DAOFactory {
             throw new IllegalArgumentException("Path is not a directory: " + data);
         }
 
-        throw new IllegalStateException("Not implemented yet");
+        return new DAOImplementation(data);
     }
 }
