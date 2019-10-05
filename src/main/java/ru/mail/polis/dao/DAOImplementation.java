@@ -5,6 +5,8 @@ import org.jetbrains.annotations.Nullable;
 
 import org.rocksdb.*;
 import ru.mail.polis.Record;
+import ru.mail.polis.utils.FastIOException;
+import ru.mail.polis.utils.FastNoSuchElementException;
 
 import java.io.File;
 import java.io.IOException;
@@ -84,10 +86,10 @@ public class DAOImplementation implements DAO {
         try {
             res = db.get(key.array());
         } catch (RocksDBException e) {
-            e.printStackTrace();
+            throw new FastIOException();
         }
         if (res == null)
-            throw new NoSuchElementException();
+            throw new FastNoSuchElementException();
         return ByteBuffer.wrap(res);
     }
 
@@ -99,7 +101,7 @@ public class DAOImplementation implements DAO {
                 db.delete(key.array());
             db.put(key.array(), value.array());
         } catch (RocksDBException e) {
-            e.printStackTrace();
+            throw new FastIOException();
         }
     }
 
@@ -108,7 +110,7 @@ public class DAOImplementation implements DAO {
         try {
             db.delete(key.array());
         } catch (RocksDBException e) {
-            e.printStackTrace();
+            throw new FastIOException();
         }
     }
 
@@ -117,7 +119,7 @@ public class DAOImplementation implements DAO {
         try {
             db.compactRange();
         } catch (RocksDBException e) {
-            e.printStackTrace();
+            throw new FastIOException();
         }
     }
 

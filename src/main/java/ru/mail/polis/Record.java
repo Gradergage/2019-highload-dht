@@ -45,11 +45,11 @@ public class Record implements Comparable<Record> {
     }
 
     public ByteBuffer getKey() {
-        return key.asReadOnlyBuffer();
+        return key;
     }
 
     public ByteBuffer getValue() {
-        return value.asReadOnlyBuffer();
+        return value;
     }
 
     @Override
@@ -57,8 +57,8 @@ public class Record implements Comparable<Record> {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         final Record record = (Record) o;
-        return Objects.equals(key, record.key)
-                && Objects.equals(value, record.value);
+        return Objects.equals(key, record.key.asReadOnlyBuffer())
+                && Objects.equals(value, record.value.asReadOnlyBuffer());
     }
 
     @Override
