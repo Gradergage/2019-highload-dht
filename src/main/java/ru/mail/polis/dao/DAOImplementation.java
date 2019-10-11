@@ -37,9 +37,23 @@ public class DAOImplementation implements DAO {
 
     private void initialize() throws RocksDBException {
         RocksDB.loadLibrary();
-        Options options = new Options()
-                .setCreateIfMissing(true)
-                .setComparator(BuiltinComparator.BYTEWISE_COMPARATOR);
+        Options options = new Options().setCreateIfMissing(true);
+
+        ComparatorOptions compOptions = new ComparatorOptions();
+        /* New comparator is necessary for correct evaluating of next element */
+        Comparator comp = new Comparator(compOptions) {
+            @Override
+            public String name() {
+                return "CorrectSequenceComparator";
+            }
+
+            @Override
+            public int compare(Slice a, Slice b) {
+                return (ByteBuffer.wrap(a.data())).compareTo(ByteBuffer.wrap(b.data()));
+            }
+        };
+
+        options.setComparator(comp);
         db = RocksDB.open(options, data.getAbsolutePath());
     }
 
