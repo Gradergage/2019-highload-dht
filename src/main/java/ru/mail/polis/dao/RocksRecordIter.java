@@ -14,7 +14,7 @@ import java.util.Iterator;
  *
  * @author Pavel Pokatilo
  */
-public class RocksRecordIter implements Iterator<Record> {
+public final class RocksRecordIter implements Iterator<Record> {
     private RocksIterator rocksIterator;
 
     private RocksRecordIter(RocksIterator rocksIterator, ByteBuffer from) {

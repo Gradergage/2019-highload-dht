@@ -30,11 +30,11 @@ public class CustomServer extends HttpServer implements Service {
         try {
             switch (request.getMethod()) {
                 case Request.METHOD_GET:
-                    return handleGet(request, key);
+                    return handleGet(key);
                 case Request.METHOD_PUT:
                     return handlePut(request, key);
                 case Request.METHOD_DELETE:
-                    return handleDelete(request, key);
+                    return handleDelete(key);
                 default:
                     return new Response(Response.METHOD_NOT_ALLOWED, Response.EMPTY);
             }
@@ -43,7 +43,7 @@ public class CustomServer extends HttpServer implements Service {
         }
     }
 
-    private Response handleGet(final Request request, ByteBuffer key) throws IOException {
+    private Response handleGet(ByteBuffer key) throws IOException {
         try {
             final ByteBuffer value = dao.get(key);
             byte[] body = new byte[value.remaining()];
@@ -59,7 +59,7 @@ public class CustomServer extends HttpServer implements Service {
         return new Response(Response.CREATED, Response.EMPTY);
     }
 
-    private Response handleDelete(final Request request, ByteBuffer key) throws IOException {
+    private Response handleDelete(ByteBuffer key) throws IOException {
         dao.remove(key);
         return new Response(Response.ACCEPTED, Response.EMPTY);
     }

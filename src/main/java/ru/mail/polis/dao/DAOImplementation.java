@@ -36,7 +36,6 @@ public class DAOImplementation implements DAO {
     }
 
     private void initialize() throws RocksDBException {
-        System.out.println(data.getAbsolutePath());
         RocksDB.loadLibrary();
         Options options = new Options()
                 .setCreateIfMissing(true)
@@ -59,8 +58,9 @@ public class DAOImplementation implements DAO {
         } catch (RocksDBException e) {
             throw new FastIOException();
         }
-        if (res == null)
+        if (res == null) {
             throw new FastNoSuchElementException();
+        }
         return ByteBuffer.wrap(res);
     }
 
@@ -68,8 +68,9 @@ public class DAOImplementation implements DAO {
     public void upsert(@NotNull ByteBuffer key, @NotNull ByteBuffer value) throws IOException {
         try {
             final byte[] res = db.get(copyByteBuffer(key));
-            if (res != null)
+            if (res != null) {
                 db.delete(copyByteBuffer(key));
+            }
             db.put(copyByteBuffer(key), copyByteBuffer(value));
         } catch (RocksDBException e) {
             throw new FastIOException();
