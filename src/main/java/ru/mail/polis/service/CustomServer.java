@@ -20,7 +20,7 @@ public class CustomServer extends HttpServer implements Service {
 
     @Override
     public void handleDefault(final Request request, final HttpSession session) throws IOException {
-        Response response = new Response(Response.BAD_REQUEST, Response.EMPTY);
+        Response response = new Response(Response.BAD_REQUEST, "Wrong query".getBytes(Charsets.UTF_8));
         session.sendResponse(response);
     }
 
@@ -28,6 +28,9 @@ public class CustomServer extends HttpServer implements Service {
     public Response entity(@Param("id") final String id, final Request request, final HttpSession session) {
         ByteBuffer key = ByteBuffer.wrap(id.getBytes(Charsets.UTF_8));
         try {
+            if (id.isEmpty() || id == null) {
+                return new Response(Response.BAD_REQUEST, "Query requires id".getBytes(Charsets.UTF_8));
+            }
             switch (request.getMethod()) {
                 case Request.METHOD_GET:
                     return handleGet(key);
@@ -42,7 +45,6 @@ public class CustomServer extends HttpServer implements Service {
             return new Response(Response.INTERNAL_ERROR, Response.EMPTY);
         }
     }
-
     private Response handleGet(ByteBuffer key) throws IOException {
         try {
             final ByteBuffer value = dao.get(key);
