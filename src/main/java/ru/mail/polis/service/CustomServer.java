@@ -18,9 +18,15 @@ public class CustomServer extends HttpServer implements Service {
         this.dao = dao;
     }
 
+    @Override
+    public void handleDefault(final Request request, final HttpSession session) throws IOException {
+        Response response = new Response(Response.BAD_REQUEST, Response.EMPTY);
+        session.sendResponse(response);
+    }
+
     @Path("/v0/entity")
     public Response entity(@Param("id") final String id, final Request request, final HttpSession session) {
-        if (id == null) {
+        if (id == null || id.isEmpty()) {
             return new Response(Response.BAD_REQUEST, Response.EMPTY);
         }
         ByteBuffer key = ByteBuffer.wrap(id.getBytes(Charsets.UTF_8));
@@ -30,13 +36,11 @@ public class CustomServer extends HttpServer implements Service {
                     try {
                         final ByteBuffer value = dao.get(key);
 
-                    byte[] body = new byte[value.remaining()];
-                    value.get(body);
-                    return new Response(Response.OK, body);
-                    }
-                    catch (NoSuchElementException e)
-                    {
-                        return new Response(Response.NOT_FOUND,"Key not found".getBytes(Charsets.UTF_8));
+                        byte[] body = new byte[value.remaining()];
+                        value.get(body);
+                        return new Response(Response.OK, body);
+                    } catch (NoSuchElementException e) {
+                        return new Response(Response.NOT_FOUND, "Key not found".getBytes(Charsets.UTF_8));
                     }
 
                 case Request.METHOD_PUT:
@@ -54,7 +58,7 @@ public class CustomServer extends HttpServer implements Service {
             return new Response(Response.INTERNAL_ERROR, Response.EMPTY);
         }
     }
-
+    
     private static HttpServerConfig getConfig(final int port) {
         if (port <= 1024 || port >= 65535) {
             throw new IllegalArgumentException("Invalid port");
