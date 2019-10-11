@@ -16,7 +16,7 @@ import java.util.NoSuchElementException;
 
 /**
  * Custom {@link DAO} storage implementation class.
- *
+ * <p>
  * Uses RocksDB as storage.
  *
  * @author Pavel Pokatilo
@@ -38,23 +38,9 @@ public class DAOImplementation implements DAO {
     private void initialize() throws RocksDBException {
         System.out.println(data.getAbsolutePath());
         RocksDB.loadLibrary();
-        Options options = new Options().setCreateIfMissing(true);
-
-        ComparatorOptions compOptions = new ComparatorOptions();
-        /* New comparator is necessary for correct evaluating of next element */
-        Comparator comp = new Comparator(compOptions) {
-            @Override
-            public String name() {
-                return "CorrectSequenceComparator";
-            }
-
-            @Override
-            public int compare(Slice a, Slice b) {
-                return (ByteBuffer.wrap(a.data())).compareTo(ByteBuffer.wrap(b.data()));
-            }
-        };
-
-        options.setComparator(comp);
+        Options options = new Options()
+                .setCreateIfMissing(true)
+                .setComparator(BuiltinComparator.BYTEWISE_COMPARATOR);
         db = RocksDB.open(options, data.getAbsolutePath());
     }
 
@@ -66,25 +52,10 @@ public class DAOImplementation implements DAO {
 
     @NotNull
     @Override
-    public Iterator<Record> range(@NotNull ByteBuffer from, @Nullable ByteBuffer to) throws IOException {
-        if (to == null) {
-            return iterator(from);
-        }
-
-        if (from.compareTo(to) > 0) {
-            return Iters.empty();
-        }
-
-        final Record bound = Record.of(to, ByteBuffer.allocate(0));
-        return Iters.until(iterator(from), bound);
-    }
-
-    @NotNull
-    @Override
     public ByteBuffer get(@NotNull ByteBuffer key) throws IOException, NoSuchElementException {
         byte[] res = null;
         try {
-            res = db.get(key.array());
+            res = db.get(copyByteBuffer(key));
         } catch (RocksDBException e) {
             throw new FastIOException();
         }
@@ -96,10 +67,10 @@ public class DAOImplementation implements DAO {
     @Override
     public void upsert(@NotNull ByteBuffer key, @NotNull ByteBuffer value) throws IOException {
         try {
-            final byte[] res = db.get(key.array());
+            final byte[] res = db.get(copyByteBuffer(key));
             if (res != null)
-                db.delete(key.array());
-            db.put(key.array(), value.array());
+                db.delete(copyByteBuffer(key));
+            db.put(copyByteBuffer(key), copyByteBuffer(value));
         } catch (RocksDBException e) {
             throw new FastIOException();
         }
@@ -108,7 +79,7 @@ public class DAOImplementation implements DAO {
     @Override
     public void remove(@NotNull ByteBuffer key) throws IOException {
         try {
-            db.delete(key.array());
+            db.delete(copyByteBuffer(key));
         } catch (RocksDBException e) {
             throw new FastIOException();
         }
@@ -126,5 +97,18 @@ public class DAOImplementation implements DAO {
     @Override
     public void close() throws IOException {
         db.close();
+    }
+
+    /**
+     * Return array from ByteBuffer that might be read-only
+     *
+     * @param src source ByteBuffer
+     * @return byte[] array
+     */
+    @NotNull
+    private byte[] copyByteBuffer(@NotNull ByteBuffer src) {
+        final byte[] array = new byte[src.remaining()];
+        src.duplicate().get(array);
+        return array;
     }
 }
