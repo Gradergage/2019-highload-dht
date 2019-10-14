@@ -7,22 +7,22 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 
 /**
- * {@link DAOImplementation} iterator,
- *
+ * Iterator
+ * <p>
  * Used as wrapping upon {@link RocksIterator}, which operating byte[] arrays,
  * to work with {@link Record}
- *
+ * <p>
  * @author Pavel Pokatilo
- */
+ **/
 public final class RocksRecordIter implements Iterator<Record> {
-    private RocksIterator rocksIterator;
+    private final RocksIterator rocksIterator;
 
     private RocksRecordIter(final RocksIterator rocksIterator, final ByteBuffer from) {
         this.rocksIterator = rocksIterator;
-        if (from != null)
-            this.rocksIterator.seek(from.array());
-        else {
+        if (from == null) {
             this.rocksIterator.seekToFirst();
+        } else {
+            this.rocksIterator.seek(from.array());
         }
     }
 
@@ -40,8 +40,9 @@ public final class RocksRecordIter implements Iterator<Record> {
         final Record current = Record.of(
                 ByteBuffer.wrap(rocksIterator.key()),
                 ByteBuffer.wrap(rocksIterator.value()));
-        if (rocksIterator.isValid())
+        if (rocksIterator.isValid()) {
             rocksIterator.next();
+        }
         /* RocksDB already has the selected element, so we need return it in next()
          at first time and in future */
         return current;

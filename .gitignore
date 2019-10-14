@@ -11,14 +11,11 @@
 !build.gradle.kts
 !.travis.yml
 !settings.gradle
-<<<<<<< HEAD
 !checkstyle.xml
 !.codeclimate.yml
-=======
 !gradle-wrapper.jar
 !gradle-wrapper.properties
 !*.svg
->>>>>>> master
 
 # ...even if they are in subdirectories
 !*/

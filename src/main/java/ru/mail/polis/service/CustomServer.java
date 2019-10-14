@@ -31,6 +31,7 @@ public class CustomServer extends HttpServer implements Service {
     }
 
     /**
+     * Main point of Service, provides access to the DB
      * @param id id from /v0/entity&id request
      * @param request Http request
      * @param session Http session
@@ -40,7 +41,7 @@ public class CustomServer extends HttpServer implements Service {
     public Response entity(@Param("id") final String id, final Request request, final HttpSession session) {
         final ByteBuffer key = ByteBuffer.wrap(id.getBytes(Charsets.UTF_8));
         try {
-            if (id.isEmpty() || id == null) {
+            if (id.isEmpty()) {
                 return new Response(Response.BAD_REQUEST, "Query requires id".getBytes(Charsets.UTF_8));
             }
             switch (request.getMethod()) {
@@ -83,9 +84,9 @@ public class CustomServer extends HttpServer implements Service {
         if (port <= 1024 || port >= 65535) {
             throw new IllegalArgumentException("Invalid port");
         }
-        AcceptorConfig acceptor = new AcceptorConfig();
+        final AcceptorConfig acceptor = new AcceptorConfig();
         acceptor.port = port;
-        HttpServerConfig httpServerConfig = new HttpServerConfig();
+        final HttpServerConfig httpServerConfig = new HttpServerConfig();
         httpServerConfig.acceptors = new AcceptorConfig[]{acceptor};
         return httpServerConfig;
     }

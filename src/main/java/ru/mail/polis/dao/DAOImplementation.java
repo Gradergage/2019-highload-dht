@@ -20,7 +20,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 /**
- * Custom {@link DAO} storage implementation class.
+ * Custom DAO storage implementation class.
  * Uses RocksDB as storage.
  * @author Pavel Pokatilo
  */
@@ -29,6 +29,7 @@ public class DAOImplementation implements DAO {
     private RocksDB db;
 
     /**
+     * Constructor overwritten from interface
      * @param data File for creating LSM storage
      */
     public DAOImplementation(@NotNull final File data) {
