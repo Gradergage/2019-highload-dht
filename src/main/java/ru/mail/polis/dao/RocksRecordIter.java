@@ -17,7 +17,7 @@ import java.util.Iterator;
 public final class RocksRecordIter implements Iterator<Record> {
     private RocksIterator rocksIterator;
 
-    private RocksRecordIter(RocksIterator rocksIterator, ByteBuffer from) {
+    private RocksRecordIter(final RocksIterator rocksIterator, final ByteBuffer from) {
         this.rocksIterator = rocksIterator;
         if (from != null)
             this.rocksIterator.seek(from.array());
@@ -26,7 +26,7 @@ public final class RocksRecordIter implements Iterator<Record> {
         }
     }
 
-    public static Iterator<Record> getIter(RocksIterator rocksIterator, ByteBuffer from) {
+    public static Iterator<Record> getIter(final RocksIterator rocksIterator, final ByteBuffer from) {
         return new RocksRecordIter(rocksIterator, from);
     }
 
@@ -37,7 +37,7 @@ public final class RocksRecordIter implements Iterator<Record> {
 
     @Override
     public Record next() {
-        Record current = Record.of(
+        final Record current = Record.of(
                 ByteBuffer.wrap(rocksIterator.key()),
                 ByteBuffer.wrap(rocksIterator.value()));
         if (rocksIterator.isValid())
