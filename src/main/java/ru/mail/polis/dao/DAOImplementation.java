@@ -22,6 +22,7 @@ import java.util.NoSuchElementException;
 /**
  * Custom DAO storage implementation class.
  * Uses RocksDB as storage.
+ *
  * @author Pavel Pokatilo
  */
 public class DAOImplementation implements DAO {
@@ -30,6 +31,7 @@ public class DAOImplementation implements DAO {
 
     /**
      * Constructor overwritten from interface.
+     *
      * @param data File for creating LSM storage
      */
     public DAOImplementation(@NotNull final File data) {
@@ -77,7 +79,7 @@ public class DAOImplementation implements DAO {
         try {
             res = db.get(copyByteBuffer(key));
         } catch (RocksDBException e) {
-            throw new FastIOException();
+            throw new FastIOException(e);
         }
         if (res == null) {
             throw new FastNoSuchElementException();
@@ -94,11 +96,7 @@ public class DAOImplementation implements DAO {
             }
             db.put(copyByteBuffer(key), copyByteBuffer(value));
         } catch (RocksDBException e) {
-            try {
-                throw new FastIOException().initCause(e);
-            } catch (Throwable throwable) {
-                throwable.printStackTrace();
-            }
+            throw new FastIOException(e);
         }
     }
 
@@ -107,11 +105,7 @@ public class DAOImplementation implements DAO {
         try {
             db.delete(copyByteBuffer(key));
         } catch (RocksDBException e) {
-            try {
-                throw new FastIOException().initCause(e);
-            } catch (Throwable throwable) {
-                throwable.printStackTrace();
-            }
+            throw new FastIOException(e);
         }
     }
 
@@ -120,11 +114,7 @@ public class DAOImplementation implements DAO {
         try {
             db.compactRange();
         } catch (RocksDBException e) {
-            try {
-                throw new FastIOException().initCause(e);
-            } catch (Throwable throwable) {
-                throwable.printStackTrace();
-            }
+            throw new FastIOException(e);
         }
     }
 
@@ -135,6 +125,7 @@ public class DAOImplementation implements DAO {
 
     /**
      * Return array from ByteBuffer that might be read-only.
+     *
      * @param src source ByteBuffer
      * @return byte[] array
      */
