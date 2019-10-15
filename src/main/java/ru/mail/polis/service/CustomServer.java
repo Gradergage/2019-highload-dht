@@ -31,19 +31,21 @@ public class CustomServer extends HttpServer implements Service {
     }
 
     /**
-     * Main point of Service, provides access to the DB
-     * @param id id from /v0/entity&id request
+     * Main point of Service, provides access to the DB.
+     *
+     * @param id      id from /v0/entity&id request
      * @param request Http request
      * @param session Http session
      * @return response for
      */
     @Path("/v0/entity")
     public Response entity(@Param("id") final String id, final Request request, final HttpSession session) {
+        if (id == null || id.isEmpty()) {
+            return new Response(Response.BAD_REQUEST, "Query requires id".getBytes(Charsets.UTF_8));
+        }
         final ByteBuffer key = ByteBuffer.wrap(id.getBytes(Charsets.UTF_8));
         try {
-            if (id.isEmpty()) {
-                return new Response(Response.BAD_REQUEST, "Query requires id".getBytes(Charsets.UTF_8));
-            }
+
             switch (request.getMethod()) {
                 case Request.METHOD_GET:
                     return handleGet(key);

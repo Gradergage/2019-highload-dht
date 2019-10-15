@@ -29,7 +29,7 @@ public class DAOImplementation implements DAO {
     private RocksDB db;
 
     /**
-     * Constructor overwritten from interface
+     * Constructor overwritten from interface.
      * @param data File for creating LSM storage
      */
     public DAOImplementation(@NotNull final File data) {
@@ -94,16 +94,24 @@ public class DAOImplementation implements DAO {
             }
             db.put(copyByteBuffer(key), copyByteBuffer(value));
         } catch (RocksDBException e) {
-            throw new FastIOException();
+            try {
+                throw new FastIOException().initCause(e);
+            } catch (Throwable throwable) {
+                throwable.printStackTrace();
+            }
         }
     }
 
     @Override
-    public void remove(@NotNull ByteBuffer key) throws IOException {
+    public void remove(@NotNull final ByteBuffer key) throws IOException {
         try {
             db.delete(copyByteBuffer(key));
         } catch (RocksDBException e) {
-            throw new FastIOException();
+            try {
+                throw new FastIOException().initCause(e);
+            } catch (Throwable throwable) {
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -112,7 +120,11 @@ public class DAOImplementation implements DAO {
         try {
             db.compactRange();
         } catch (RocksDBException e) {
-            throw new FastIOException();
+            try {
+                throw new FastIOException().initCause(e);
+            } catch (Throwable throwable) {
+                throwable.printStackTrace();
+            }
         }
     }
 
@@ -122,7 +134,7 @@ public class DAOImplementation implements DAO {
     }
 
     /**
-     * Return array from ByteBuffer that might be read-only
+     * Return array from ByteBuffer that might be read-only.
      * @param src source ByteBuffer
      * @return byte[] array
      */

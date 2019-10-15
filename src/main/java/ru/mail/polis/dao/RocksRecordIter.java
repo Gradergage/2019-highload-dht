@@ -7,11 +7,9 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 
 /**
- * Iterator
- * <p>
+ * Iterator.
  * Used as wrapping upon {@link RocksIterator}, which operating byte[] arrays,
- * to work with {@link Record}
- * <p>
+ * to work with {@link Record}.
  * @author Pavel Pokatilo
  **/
 public final class RocksRecordIter implements Iterator<Record> {
