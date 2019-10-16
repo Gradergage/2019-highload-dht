@@ -8,7 +8,7 @@ import one.nio.net.Socket;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import ru.mail.polis.Record;
-import ru.mail.polis.utils.*;
+import ru.mail.polis.utils.RocksByteBufferUtils;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;

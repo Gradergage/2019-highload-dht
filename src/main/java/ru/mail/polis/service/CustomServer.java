@@ -1,13 +1,7 @@
 package ru.mail.polis.service;
 
 import com.google.common.base.Charsets;
-import one.nio.http.HttpServer;
-import one.nio.http.HttpServerConfig;
-import one.nio.http.HttpSession;
-import one.nio.http.Param;
-import one.nio.http.Path;
-import one.nio.http.Request;
-import one.nio.http.Response;
+import one.nio.http.*;
 import one.nio.net.Socket;
 import one.nio.server.AcceptorConfig;
 import one.nio.server.RejectedSessionException;
@@ -17,7 +11,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import ru.mail.polis.Record;
 import ru.mail.polis.dao.DAO;
-import ru.mail.polis.dao.DAOImplementation;
 import ru.mail.polis.dao.StreamHttpSession;
 
 import java.io.IOException;
@@ -38,6 +31,16 @@ public class CustomServer extends HttpServer implements Service {
     public void handleDefault(final Request request, final HttpSession session) throws IOException {
         final Response response = new Response(Response.BAD_REQUEST, "Wrong query".getBytes(Charsets.UTF_8));
         session.sendResponse(response);
+    }
+
+    /**
+     * Check status of this node.
+     *
+     * @return status
+     */
+    @Path("/v0/status")
+    public Response status() {
+        return Response.ok("OK");
     }
 
     /**
