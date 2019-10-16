@@ -40,7 +40,8 @@ public class RocksByteBufferUtils {
     private static void arrayTransform(final byte[] array, final boolean toUnsigned) {
         for (int i = 0; i < array.length; i++) {
             final int uint = Byte.toUnsignedInt(array[i]);
-            array[i] = toUnsigned ?
+            array[i] = toUnsigned
+                    ?
                     (byte) (uint - Byte.MIN_VALUE) : (byte) (uint + Byte.MIN_VALUE);
         }
     }

@@ -89,6 +89,7 @@ public class CustomServer extends HttpServer implements Service {
         }
         final ByteBuffer startKey = ByteBuffer.wrap(start.getBytes(Charsets.UTF_8));
         ByteBuffer tempEndKey = null;
+
         if (end != null && !end.isEmpty()) {
             tempEndKey = ByteBuffer.wrap(end.getBytes(Charsets.UTF_8));
         }
