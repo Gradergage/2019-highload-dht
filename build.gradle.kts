@@ -2,6 +2,7 @@
 plugins {
     java
     application
+    id("net.ltgt.errorprone") version "0.8.1"
 }
 
 java {
@@ -11,16 +12,18 @@ java {
 
 repositories {
     jcenter()
+    mavenCentral()
 }
 
 dependencies {
+
+    errorprone("com.google.errorprone:error_prone_core:2.3.3")
     // Our beloved one-nio
     compile("ru.odnoklassniki:one-nio:1.2.0")
 
     // Logging
     compile("org.slf4j:slf4j-api:1.7.26")
     compile("ch.qos.logback:logback-classic:1.2.3")
-
     // Annotations for better code documentation
     compile("com.intellij:annotations:12.0")
 

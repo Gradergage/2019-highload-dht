@@ -9,10 +9,8 @@ public class FastIOException extends IOException {
     }
 
     @Override
-    public Throwable fillInStackTrace() {
-        synchronized(this) {
+    public synchronized Throwable fillInStackTrace() {
             return this;
-        }
     }
 }
 

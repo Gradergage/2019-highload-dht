@@ -5,7 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-public final class RocksByteBufferUtils {
+public class RocksByteBufferUtils {
 
     private RocksByteBufferUtils() {
         throw new IllegalStateException("Utility class");
