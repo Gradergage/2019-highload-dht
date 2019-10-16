@@ -6,9 +6,7 @@ import java.util.NoSuchElementException;
 public class FastNoSuchElementException extends NoSuchElementException {
 
     @Override
-    public Throwable fillInStackTrace() {
-        synchronized(this) {
+    public synchronized Throwable fillInStackTrace() {
             return this;
-        }
     }
 }
