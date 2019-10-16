@@ -2,16 +2,12 @@ package ru.mail.polis.dao;
 
 import org.jetbrains.annotations.NotNull;
 
-import org.rocksdb.Comparator;
-import org.rocksdb.ComparatorOptions;
-import org.rocksdb.Options;
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
-import org.rocksdb.Slice;
+import org.rocksdb.*;
 
 import ru.mail.polis.Record;
 import ru.mail.polis.utils.FastIOException;
 import ru.mail.polis.utils.FastNoSuchElementException;
+import ru.mail.polis.utils.RocksByteBufferUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -46,38 +42,26 @@ public class DAOImplementation implements DAO {
 
     private void initialize() throws RocksDBException {
         RocksDB.loadLibrary();
-        final Options options = new Options().setCreateIfMissing(true);
-
-        final ComparatorOptions compOptions = new ComparatorOptions();
-        /* New comparator is necessary for correct evaluating of next element */
-        final Comparator comp = new Comparator(compOptions) {
-            @Override
-            public String name() {
-                return "CorrectSequenceComparator";
-            }
-
-            @Override
-            public int compare(final Slice a, final Slice b) {
-                return ByteBuffer.wrap(a.data()).compareTo(ByteBuffer.wrap(b.data()));
-            }
-        };
-
-        options.setComparator(comp);
+        final Options options = new Options()
+                .setCreateIfMissing(true)
+                .setComparator(BuiltinComparator.BYTEWISE_COMPARATOR);
         db = RocksDB.open(options, data.getAbsolutePath());
     }
 
     @NotNull
     @Override
     public Iterator<Record> iterator(@NotNull final ByteBuffer from) throws IOException {
-        return RocksRecordIter.getIter(db.newIterator(), from);
+        final ByteBuffer tempFrom = RocksByteBufferUtils.toUnsignedByteArray(from);
+        return RocksRecordIter.getIter(db.newIterator(), tempFrom);
     }
 
     @NotNull
     @Override
     public ByteBuffer get(@NotNull final ByteBuffer key) throws IOException, NoSuchElementException {
+        final ByteBuffer tempKey = RocksByteBufferUtils.toUnsignedByteArray(key);
         byte[] res = null;
         try {
-            res = db.get(copyByteBuffer(key));
+            res = db.get(RocksByteBufferUtils.copyByteBuffer(tempKey));
         } catch (RocksDBException e) {
             throw new FastIOException(e);
         }
@@ -89,12 +73,13 @@ public class DAOImplementation implements DAO {
 
     @Override
     public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) throws IOException {
+        final ByteBuffer tempKey = RocksByteBufferUtils.toUnsignedByteArray(key);
         try {
-            final byte[] res = db.get(copyByteBuffer(key));
+            final byte[] res = db.get(RocksByteBufferUtils.copyByteBuffer(tempKey));
             if (res != null) {
-                db.delete(copyByteBuffer(key));
+                db.delete(RocksByteBufferUtils.copyByteBuffer(tempKey));
             }
-            db.put(copyByteBuffer(key), copyByteBuffer(value));
+            db.put(RocksByteBufferUtils.copyByteBuffer(tempKey), RocksByteBufferUtils.copyByteBuffer(value));
         } catch (RocksDBException e) {
             throw new FastIOException(e);
         }
@@ -102,8 +87,9 @@ public class DAOImplementation implements DAO {
 
     @Override
     public void remove(@NotNull final ByteBuffer key) throws IOException {
+        final ByteBuffer tempKey = RocksByteBufferUtils.toUnsignedByteArray(key);
         try {
-            db.delete(copyByteBuffer(key));
+            db.delete(RocksByteBufferUtils.copyByteBuffer(tempKey));
         } catch (RocksDBException e) {
             throw new FastIOException(e);
         }
@@ -123,16 +109,5 @@ public class DAOImplementation implements DAO {
         db.close();
     }
 
-    /**
-     * Return array from ByteBuffer that might be read-only.
-     *
-     * @param src source ByteBuffer
-     * @return byte[] array
-     */
-    @NotNull
-    private byte[] copyByteBuffer(@NotNull final ByteBuffer src) {
-        final byte[] array = new byte[src.remaining()];
-        src.duplicate().get(array);
-        return array;
-    }
+
 }

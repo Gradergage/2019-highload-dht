@@ -8,12 +8,18 @@ import one.nio.http.Param;
 import one.nio.http.Path;
 import one.nio.http.Request;
 import one.nio.http.Response;
+import one.nio.net.Socket;
 import one.nio.server.AcceptorConfig;
+import one.nio.server.RejectedSessionException;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import ru.mail.polis.Record;
 import ru.mail.polis.dao.DAO;
+import ru.mail.polis.dao.StreamHttpSession;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 public class CustomServer extends HttpServer implements Service {
@@ -31,7 +37,7 @@ public class CustomServer extends HttpServer implements Service {
     }
 
     /**
-     * Main point of Service, provides access to the DB.
+     * Provides an entry by the id (key). id is strongly required.
      *
      * @param id      id from /v0/entity&id request
      * @param request Http request
@@ -39,7 +45,9 @@ public class CustomServer extends HttpServer implements Service {
      * @return response for
      */
     @Path("/v0/entity")
-    public Response entity(@Param("id") final String id, final Request request, final HttpSession session) {
+    public Response entity(@Param("id") final String id,
+                           final Request request,
+                           final HttpSession session) {
         if (id == null || id.isEmpty()) {
             return new Response(Response.BAD_REQUEST, "Query requires id".getBytes(Charsets.UTF_8));
         }
@@ -59,6 +67,55 @@ public class CustomServer extends HttpServer implements Service {
         } catch (IOException e) {
             return new Response(Response.INTERNAL_ERROR, Response.EMPTY);
         }
+
+    }
+
+    /**
+     * Provides all entries from start key to end key, if end key.
+     * Retrieves full range from start in case of nonexistent end key.
+     *
+     * @param start start key of range
+     * @param end   end key of range
+     */
+    @Path("/v0/entities")
+    public void entities(
+            @Param("start") final String start,
+            @Param("end") final String end,
+            @NotNull final HttpSession session) throws IOException {
+        if (start == null || start.isEmpty()) {
+            session.sendResponse(new Response(Response.BAD_REQUEST, "Start parameter is required".getBytes(Charsets.UTF_8)));
+        }
+        final ByteBuffer startKey = ByteBuffer.wrap(start.getBytes(Charsets.UTF_8));
+        ByteBuffer tempEndKey = null;
+        if (end != null && !end.isEmpty()) {
+            tempEndKey = ByteBuffer.wrap(end.getBytes(Charsets.UTF_8));
+        }
+        final ByteBuffer endKey = tempEndKey;
+        final StreamHttpSession streamSession = (StreamHttpSession) session;
+        asyncExecute(() -> {
+            try {
+                handleEntities(startKey, endKey, streamSession);
+            } catch (IOException exception) {
+                try {
+                    session.sendResponse(new Response(Response.INTERNAL_ERROR));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    private void handleEntities(
+            @NotNull final ByteBuffer start,
+            @Nullable final ByteBuffer end,
+            final StreamHttpSession session) throws IOException {
+        Iterator<Record> iterator = dao.range(start, end);
+        session.openStream(iterator);
+    }
+
+    @Override
+    public HttpSession createSession(final Socket socket) throws RejectedSessionException {
+        return new StreamHttpSession(socket, this);
     }
 
     private Response handleGet(final ByteBuffer key) throws IOException {
