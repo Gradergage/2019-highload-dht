@@ -11,10 +11,13 @@ import one.nio.http.Response;
 import one.nio.net.Socket;
 import one.nio.server.AcceptorConfig;
 import one.nio.server.RejectedSessionException;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import ru.mail.polis.Record;
 import ru.mail.polis.dao.DAO;
+import ru.mail.polis.dao.DAOImplementation;
 import ru.mail.polis.dao.StreamHttpSession;
 
 import java.io.IOException;
@@ -23,6 +26,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 public class CustomServer extends HttpServer implements Service {
+    private static final Log log = LogFactory.getLog(CustomServer.class);
     private final DAO dao;
 
     public CustomServer(final int port, @NotNull final DAO dao) throws IOException {
@@ -83,10 +87,13 @@ public class CustomServer extends HttpServer implements Service {
             @Param("end") final String end,
             @NotNull final HttpSession session) throws IOException {
         if (start == null || start.isEmpty()) {
-            session.sendResponse(new Response(Response.BAD_REQUEST, "Start parameter is required".getBytes(Charsets.UTF_8)));
+            session.sendResponse(
+                    new Response(Response.BAD_REQUEST,
+                            "Start parameter is required".getBytes(Charsets.UTF_8)));
         }
         final ByteBuffer startKey = ByteBuffer.wrap(start.getBytes(Charsets.UTF_8));
         ByteBuffer tempEndKey = null;
+
         if (end != null && !end.isEmpty()) {
             tempEndKey = ByteBuffer.wrap(end.getBytes(Charsets.UTF_8));
         }
@@ -99,7 +106,7 @@ public class CustomServer extends HttpServer implements Service {
                 try {
                     session.sendResponse(new Response(Response.INTERNAL_ERROR));
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    log.error("Exception while initializing RocksDB", e);
                 }
             }
         });
@@ -109,7 +116,7 @@ public class CustomServer extends HttpServer implements Service {
             @NotNull final ByteBuffer start,
             @Nullable final ByteBuffer end,
             final StreamHttpSession session) throws IOException {
-        Iterator<Record> iterator = dao.range(start, end);
+        final Iterator<Record> iterator = dao.range(start, end);
         session.openStream(iterator);
     }
 

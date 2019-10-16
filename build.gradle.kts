@@ -13,6 +13,7 @@ java {
 
 repositories {
     jcenter()
+    mavenCentral()
 }
 
 dependencies {
@@ -25,7 +26,6 @@ dependencies {
     // Logging
     compile("org.slf4j:slf4j-api:1.7.26")
     compile("ch.qos.logback:logback-classic:1.2.3")
-
     // Annotations for better code documentation
     compile("com.intellij:annotations:12.0")
 

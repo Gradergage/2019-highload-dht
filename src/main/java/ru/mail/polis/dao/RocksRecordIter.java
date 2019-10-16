@@ -24,7 +24,7 @@ public final class RocksRecordIter implements Iterator<Record>, Closeable {
         if (from == null) {
             this.rocksIterator.seekToFirst();
         } else {
-            this.rocksIterator.seek(from.array());
+            this.rocksIterator.seek(RocksByteBufferUtils.copyByteBuffer(from));
         }
     }
 

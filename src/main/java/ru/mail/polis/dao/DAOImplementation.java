@@ -1,13 +1,13 @@
 package ru.mail.polis.dao;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.log4j.spi.LoggerFactory;
 import org.jetbrains.annotations.NotNull;
 
 import org.rocksdb.*;
-
 import ru.mail.polis.Record;
-import ru.mail.polis.utils.FastIOException;
-import ru.mail.polis.utils.FastNoSuchElementException;
-import ru.mail.polis.utils.RocksByteBufferUtils;
+import ru.mail.polis.utils.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,6 +22,7 @@ import java.util.NoSuchElementException;
  * @author Pavel Pokatilo
  */
 public class DAOImplementation implements DAO {
+    private static final Log log = LogFactory.getLog(DAOImplementation.class);
     private final File data;
     private RocksDB db;
 
@@ -36,7 +37,7 @@ public class DAOImplementation implements DAO {
         try {
             initialize();
         } catch (RocksDBException e) {
-            e.printStackTrace();
+            log.error("Exception while initializing RocksDB", e);
         }
     }
 
