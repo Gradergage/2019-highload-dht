@@ -2,8 +2,10 @@ package ru.mail.polis.dao;
 
 import org.jetbrains.annotations.NotNull;
 
-import org.rocksdb.*;
-
+import org.rocksdb.BuiltinComparator;
+import org.rocksdb.Options;
+import org.rocksdb.RocksDB;
+import org.rocksdb.RocksDBException;
 import ru.mail.polis.Record;
 import ru.mail.polis.utils.FastIOException;
 import ru.mail.polis.utils.FastNoSuchElementException;

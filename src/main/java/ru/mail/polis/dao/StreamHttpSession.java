@@ -27,6 +27,12 @@ public class StreamHttpSession extends HttpSession {
         super(socket, server);
     }
 
+    /**
+     * Initialize and start chain of chunk writings to the session response.
+     *
+     * @param iterator iterator from DAO
+     * @throws IOException in case of casualties
+     */
     public void openStream(final Iterator<Record> iterator) throws IOException {
         this.iterator = iterator;
         if (handling == null) {

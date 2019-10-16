@@ -7,8 +7,12 @@ import java.util.Arrays;
 
 public class RocksByteBufferUtils {
 
+    private RocksByteBufferUtils() {
+        throw new IllegalStateException("Utility class");
+    }
+
     /**
-     * Used for transformation of array in ByteBuffer to unsigned byte array
+     * Used for transformation of array in ByteBuffer to unsigned byte array.
      *
      * @param buffer source ByteBuffer
      * @return ByteBuffer
@@ -16,15 +20,12 @@ public class RocksByteBufferUtils {
     @NotNull
     public static ByteBuffer toUnsignedByteArray(@NotNull final ByteBuffer buffer) {
         final byte[] array = copyByteBuffer(buffer);
-        for (int i = 0; i < array.length; i++) {
-            final int uint = Byte.toUnsignedInt(array[i]);
-            array[i] = (byte) (uint - Byte.MIN_VALUE);
-        }
+        arrayTransform(array, true);
         return ByteBuffer.wrap(array);
     }
 
     /**
-     * Used for transformation of unsigned byte array in ByteBuffer to byte array
+     * Used for transformation of unsigned byte array in ByteBuffer to byte array.
      *
      * @param array source byte[] array
      * @return ByteBuffer
@@ -32,11 +33,16 @@ public class RocksByteBufferUtils {
     @NotNull
     public static ByteBuffer fromUnsignedByteArray(@NotNull final byte[] array) {
         final byte[] arrayCopy = Arrays.copyOf(array, array.length);
-        for (int i = 0; i < arrayCopy.length; i++) {
-            final int uint = Byte.toUnsignedInt(arrayCopy[i]);
-            arrayCopy[i] = (byte) (uint + Byte.MIN_VALUE);
-        }
+        arrayTransform(arrayCopy, false);
         return ByteBuffer.wrap(arrayCopy);
+    }
+
+    private static void arrayTransform(final byte[] array, final boolean toUnsigned) {
+        for (int i = 0; i < array.length; i++) {
+            final int uint = Byte.toUnsignedInt(array[i]);
+            array[i] = toUnsigned ?
+                    (byte) (uint - Byte.MIN_VALUE) : (byte) (uint + Byte.MIN_VALUE);
+        }
     }
 
     /**

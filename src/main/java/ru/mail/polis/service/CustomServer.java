@@ -83,7 +83,9 @@ public class CustomServer extends HttpServer implements Service {
             @Param("end") final String end,
             @NotNull final HttpSession session) throws IOException {
         if (start == null || start.isEmpty()) {
-            session.sendResponse(new Response(Response.BAD_REQUEST, "Start parameter is required".getBytes(Charsets.UTF_8)));
+            session.sendResponse(
+                    new Response(Response.BAD_REQUEST,
+                            "Start parameter is required".getBytes(Charsets.UTF_8)));
         }
         final ByteBuffer startKey = ByteBuffer.wrap(start.getBytes(Charsets.UTF_8));
         ByteBuffer tempEndKey = null;
@@ -109,7 +111,7 @@ public class CustomServer extends HttpServer implements Service {
             @NotNull final ByteBuffer start,
             @Nullable final ByteBuffer end,
             final StreamHttpSession session) throws IOException {
-        Iterator<Record> iterator = dao.range(start, end);
+        final Iterator<Record> iterator = dao.range(start, end);
         session.openStream(iterator);
     }
 
