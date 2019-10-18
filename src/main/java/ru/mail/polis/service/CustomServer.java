@@ -99,6 +99,7 @@ public class CustomServer extends HttpServer implements Service {
             session.sendResponse(
                     new Response(Response.BAD_REQUEST,
                             "Start parameter is required".getBytes(Charsets.UTF_8)));
+            return;
         }
         final ByteBuffer startKey = ByteBuffer.wrap(start.getBytes(Charsets.UTF_8));
         ByteBuffer tempEndKey = null;
