@@ -36,6 +36,7 @@ public class CustomServer extends HttpServer implements Service {
     @Override
     public void handleDefault(final Request request, final HttpSession session) throws IOException {
         final Response response = new Response(Response.BAD_REQUEST, "Wrong query".getBytes(Charsets.UTF_8));
+        System.out.println(request.getMethod());
         session.sendResponse(response);
     }
 
@@ -55,7 +56,6 @@ public class CustomServer extends HttpServer implements Service {
      * @param id      id from /v0/entity&id request
      * @param request Http request
      * @param session Http session
-     * @return response for
      */
     @Path("/v0/entity")
     public void entity(@Param("id") final String id,
@@ -73,7 +73,7 @@ public class CustomServer extends HttpServer implements Service {
         });
     }
 
-    private void sendResponse(@NotNull Response response, @NotNull HttpSession session) {
+    private void sendResponse(@NotNull final Response response, @NotNull final HttpSession session) {
         try {
             session.sendResponse(response);
         } catch (IOException e) {
@@ -97,6 +97,7 @@ public class CustomServer extends HttpServer implements Service {
                 break;
             default:
                 sendResponse(new Response(Response.METHOD_NOT_ALLOWED, Response.EMPTY), session);
+                break;
         }
     }
 
