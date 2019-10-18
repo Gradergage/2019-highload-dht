@@ -158,7 +158,6 @@ class BasicTest extends TestBase {
 
             // Check the data
             final Iterator<Record> actualIter = dao.iterator(map.lastKey());
-            //System.out.println(map.get(map.lastKey()).array() + " " + actualIter.next().getValue().array());
             assertEquals(map.get(map.lastKey()), actualIter.next().getValue());
             assertFalse(actualIter.hasNext());
         }
