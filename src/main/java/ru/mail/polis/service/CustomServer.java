@@ -58,29 +58,46 @@ public class CustomServer extends HttpServer implements Service {
      * @return response for
      */
     @Path("/v0/entity")
-    public Response entity(@Param("id") final String id,
-                           final Request request,
-                           final HttpSession session) {
+    public void entity(@Param("id") final String id,
+                       final Request request,
+                       final HttpSession session) {
         if (id == null || id.isEmpty()) {
-            return new Response(Response.BAD_REQUEST, "Query requires id".getBytes(Charsets.UTF_8));
+            sendResponse(new Response(Response.BAD_REQUEST, "Query requires id".getBytes(Charsets.UTF_8)), session);
         }
-        final ByteBuffer key = ByteBuffer.wrap(id.getBytes(Charsets.UTF_8));
-        try {
-
-            switch (request.getMethod()) {
-                case Request.METHOD_GET:
-                    return handleGet(key);
-                case Request.METHOD_PUT:
-                    return handlePut(request, key);
-                case Request.METHOD_DELETE:
-                    return handleDelete(key);
-                default:
-                    return new Response(Response.METHOD_NOT_ALLOWED, Response.EMPTY);
+        asyncExecute(() -> {
+            try {
+                handleEntityRequest(id, request, session);
+            } catch (IOException exception) {
+                sendResponse(new Response(Response.INTERNAL_ERROR, Response.EMPTY), session);
             }
-        } catch (IOException e) {
-            return new Response(Response.INTERNAL_ERROR, Response.EMPTY);
-        }
+        });
+    }
 
+    private void sendResponse(@NotNull Response response, @NotNull HttpSession session) {
+        try {
+            session.sendResponse(response);
+        } catch (IOException e) {
+            log.error(e);
+        }
+    }
+
+    private void handleEntityRequest(@NotNull final String id, @NotNull final Request request,
+                                     final HttpSession session) throws IOException {
+        final ByteBuffer key = ByteBuffer.wrap(id.getBytes(Charsets.UTF_8));
+
+        switch (request.getMethod()) {
+            case Request.METHOD_GET:
+                sendResponse(handleGet(key), session);
+                break;
+            case Request.METHOD_PUT:
+                sendResponse(handlePut(request, key), session);
+                break;
+            case Request.METHOD_DELETE:
+                sendResponse(handleDelete(key), session);
+                break;
+            default:
+                sendResponse(new Response(Response.METHOD_NOT_ALLOWED, Response.EMPTY), session);
+        }
     }
 
     /**
@@ -125,7 +142,7 @@ public class CustomServer extends HttpServer implements Service {
     private void handleEntities(
             @NotNull final ByteBuffer start,
             @Nullable final ByteBuffer end,
-            final StreamHttpSession session) throws IOException {
+            @NotNull final StreamHttpSession session) throws IOException {
         final Iterator<Record> iterator = dao.range(start, end);
         session.openStream(iterator);
     }
