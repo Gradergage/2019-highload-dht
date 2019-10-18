@@ -36,7 +36,6 @@ public class CustomServer extends HttpServer implements Service {
     @Override
     public void handleDefault(final Request request, final HttpSession session) throws IOException {
         final Response response = new Response(Response.BAD_REQUEST, "Wrong query".getBytes(Charsets.UTF_8));
-        System.out.println(request.getMethod());
         session.sendResponse(response);
     }
 
