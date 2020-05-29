@@ -1,14 +1,12 @@
 package ru.mail.polis.service;
 
 import com.google.common.base.Charsets;
-import one.nio.http.HttpServer;
-import one.nio.http.HttpServerConfig;
-import one.nio.http.HttpSession;
-import one.nio.http.Param;
-import one.nio.http.Path;
-import one.nio.http.Request;
-import one.nio.http.Response;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableSet;
+import one.nio.http.*;
+import one.nio.net.ConnectionString;
 import one.nio.net.Socket;
+import one.nio.pool.PoolException;
 import one.nio.server.AcceptorConfig;
 import one.nio.server.RejectedSessionException;
 import org.apache.commons.logging.Log;
@@ -18,19 +16,35 @@ import org.jetbrains.annotations.Nullable;
 import ru.mail.polis.Record;
 import ru.mail.polis.dao.DAO;
 import ru.mail.polis.dao.StreamHttpSession;
+import ru.mail.polis.utils.CompletableFutureExecutor;
+import ru.mail.polis.utils.RocksByteBufferUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 public class CustomServer extends HttpServer implements Service {
+
     private static final Log log = LogFactory.getLog(CustomServer.class);
     private final DAO dao;
 
-    public CustomServer(final int port, @NotNull final DAO dao) throws IOException {
+    //private static final String TIMESTAMP_HEADER = "X-Service-Timestamp:";
+    private static final String SERVICE_REQUEST_HEADER = "X-Service-Request:";
+    private final Map<String, HttpClient> clusterPool;
+    private static final int TIMEOUT = 100;
+    private final Topology topology;
+
+    public CustomServer(final int port, @NotNull final DAO dao, final Topology topology) throws IOException {
         super(getConfig(port));
         this.dao = dao;
+        this.topology = topology;
+        clusterPool = topology.getNodes().stream().filter(
+                node -> !topology.isCurrentNode(node))
+                .collect(Collectors.toMap(
+                        node -> node,
+                        node -> new HttpClient(new ConnectionString(node + "?timeout=" + TIMEOUT))));
     }
 
     @Override
@@ -58,18 +72,215 @@ public class CustomServer extends HttpServer implements Service {
      */
     @Path("/v0/entity")
     public void entity(@Param("id") final String id,
+                       @Param("replicas") final String replicas,
                        final Request request,
                        final HttpSession session) {
+
         if (id == null || id.isEmpty()) {
             sendResponse(new Response(Response.BAD_REQUEST, "Query requires id".getBytes(Charsets.UTF_8)), session);
+            return;
         }
+        System.out.println("on node [" + port + "] | is service:" + getServiceMarkerHeader(request));
+
+        if (getServiceMarkerHeader(request)) {
+            asyncExecute(() -> {
+                try {
+                    sendResponse(handleEntityRequest(id, request), session);
+                } catch (IOException exception) {
+                    sendResponse(new Response(Response.INTERNAL_ERROR, Response.EMPTY), session);
+                }
+            });
+            return;
+        }
+
+        Integer[] ackFrom = generateAckFrom();
+        if (replicas != null && !replicas.isEmpty()) {
+            ackFrom = getAckFrom(replicas);
+        }
+
+        if (!checkAckFrom(ackFrom[0], ackFrom[1])) {
+            sendResponse(new Response(Response.BAD_REQUEST, "Bad replicas parameter".getBytes(Charsets.UTF_8)), session);
+            return;
+        }
+        final Replicas replicasObj = new Replicas(ackFrom[0], ackFrom[1]);
+        final long timestamp = System.currentTimeMillis();
+
+        asyncExecute(() -> {
+            executeEntityRequest(id, replicasObj, request, session, timestamp);
+        });
+
+     /*   final ByteBuffer key = ByteBuffer.wrap(id.getBytes(Charsets.UTF_8));
+        final String node = topology.getNode(key);
+        //if (ackFrom[0] == 1 && ackFrom[1] == 1) {
         asyncExecute(() -> {
             try {
-                handleEntityRequest(id, request, session);
-            } catch (IOException exception) {
+                if (topology.isCurrentNode(node) || getServiceMarkerHeader(request)) {
+                    sendResponse(handleEntityRequest(id, request), session);
+                } else {
+                    setServiceMarkerHeader(request);
+                    sendResponse(clusterPool.get(node).invoke(request, TIMEOUT), session);
+                }
+            } catch (IOException | InterruptedException | PoolException exception) {
                 sendResponse(new Response(Response.INTERNAL_ERROR, Response.EMPTY), session);
+            } catch (HttpException e) {
+                sendResponse(new Response(Response.BAD_REQUEST, "Not enough replicas".getBytes(Charsets.UTF_8)), session);
             }
-        });
+        });*/
+    }
+
+    private void executeEntityRequest(final String id,
+                                      final Replicas replicas,
+                                      final Request request,
+                                      final HttpSession session,
+                                      final long timestamp) {
+        final ByteBuffer key = ByteBuffer.wrap(id.getBytes(Charsets.UTF_8));
+        final String node = topology.getNode(key);
+
+        //  System.out.println("on node " + port);
+
+        final List<CompletableFuture<Response>> responses = new ArrayList<>();
+
+
+        for (String n : topology.getNodes()) {
+            if (topology.isCurrentNode(node)) {
+                responses.add(processLocally(id, request));
+            } else {
+                responses.add(processOnNode(n, request));
+            }
+        }
+
+        CompletableFutureExecutor
+                .onComplete(responses, replicas.getAck())
+                .thenAccept(
+                        res -> {
+                            //TODO
+                            try {
+                                System.out.println("answering:" + port);
+                                session.sendResponse(extractReplicasResponse(request, replicas.getAck(), res));
+                            } catch (IOException e) {
+                                sendError(session, e.getMessage());
+                            }
+                        }
+                )
+                .exceptionally(e -> {
+                    try {
+
+                        System.out.println("gateway timeout:" + port);
+                        session.sendResponse(new Response(Response.GATEWAY_TIMEOUT, Response.EMPTY));
+                    } catch (IOException ex) {
+
+                        System.out.println("error:" + port);
+                        sendError(session, ex.getMessage());
+                    }
+                    return null;
+                });
+
+      /*  asyncExecute(() -> {
+            try {
+                if (topology.isCurrentNode(node) || getServiceMarkerHeader(request)) {
+                    sendResponse(handleEntityRequest(id, request), session);
+                } else {
+                    setServiceMarkerHeader(request);
+                    sendResponse(clusterPool.get(node).invoke(request, TIMEOUT), session);
+                }
+            } catch (IOException | InterruptedException | PoolException exception) {
+                sendResponse(new Response(Response.INTERNAL_ERROR, Response.EMPTY), session);
+            } catch (HttpException e) {
+                sendResponse(new Response(Response.BAD_REQUEST, "Not enough replicas".getBytes(Charsets.UTF_8)), session);
+            }
+        });*/
+
+    }
+
+    private CompletableFuture<Response> processOnNode(@NotNull final String node, @NotNull final Request request) {
+        final CompletableFuture<Response> response = new CompletableFuture<>();
+        setServiceMarkerHeader(request);
+        try {
+            final Response r = clusterPool.get(node).invoke(request, TIMEOUT);
+            System.out.println("answering onNode:" + port);
+            response.complete(r);
+        } catch (IOException | InterruptedException | PoolException | HttpException e) {
+            System.out.println("exceptionally onNode:" + port + " "+e.getMessage());
+            response.completeExceptionally(e);
+        }
+        return response;
+    }
+
+    private CompletableFuture<Response> processLocally(@NotNull final String id, @NotNull final Request request) {
+        final CompletableFuture<Response> response = new CompletableFuture<>();
+        setServiceMarkerHeader(request);
+        try {
+            final Response r = handleEntityRequest(id, request);
+            System.out.println("answeringLocally:" + port);
+            response.complete(r);
+        } catch (IOException e) {
+            System.out.println("exceptionallyLocally:" + port);
+            response.completeExceptionally(e);
+        }
+        return response;
+    }
+
+    private Response extractReplicasResponse(@NotNull final Request request,
+                                             final int ack,
+                                             final List<Response> responses) {
+        final Set<Integer> codes = ImmutableSet.of(200, 201, 202, 404);
+        final long successResponses = responses.stream()
+                .map(Response::getStatus)
+                .filter(codes::contains)
+                .count();
+        if (successResponses < ack) {
+            return new Response("504 Not Enough Replicas", Response.EMPTY);
+        }
+        switch (request.getMethod()) {
+            case Request.METHOD_GET: {
+                ByteBuffer record = null;
+                for (final Response response : responses) {
+                    if (response.getStatus() != 200) {
+                        continue;
+                    }
+                    record = RocksByteBufferUtils.fromUnsignedByteArray(response.getBody());
+                }
+                if (record == null) {
+                    return new Response(Response.NOT_FOUND, Response.EMPTY);
+                } else {
+                    final byte[] value = RocksByteBufferUtils.copyByteBuffer(record);
+                    return Response.ok(value);
+                }
+            }
+            case Request.METHOD_PUT: {
+                return new Response(Response.CREATED, Response.EMPTY);
+            }
+            case Request.METHOD_DELETE: {
+                return new Response(Response.ACCEPTED, Response.EMPTY);
+            }
+            default:
+                return new Response(Response.METHOD_NOT_ALLOWED, Response.EMPTY);
+        }
+    }
+
+    private void sendError(@NotNull final HttpSession session, @NotNull final String message) {
+        try {
+            session.sendError(Response.INTERNAL_ERROR, message);
+        } catch (IOException e) {
+            log.error("Error", e);
+        }
+    }
+
+    private Integer[] generateAckFrom() {
+        return new Integer[]{topology.getNodes().size() / 2 + 1, topology.getNodes().size()};
+    }
+
+    private boolean checkAckFrom(Integer ack, Integer from) {
+        return ack <= from && ack != 0 && from != 0 && from <= topology.getNodes().size();
+    }
+
+    private Integer[] getAckFrom(final String replicas) {
+        final List<String> array = Splitter.on("/").splitToList(replicas);
+        if (array.size() < 2) {
+            return new Integer[]{0, 0};
+        } else {
+            return new Integer[]{Integer.parseInt(array.get(0)), Integer.parseInt(array.get(1))};
+        }
     }
 
     private void sendResponse(@NotNull final Response response, @NotNull final HttpSession session) {
@@ -80,24 +291,24 @@ public class CustomServer extends HttpServer implements Service {
         }
     }
 
-    private void handleEntityRequest(@NotNull final String id, @NotNull final Request request,
-                                     final HttpSession session) throws IOException {
+    private Response handleEntityRequest(@NotNull final String id, @NotNull final Request request) throws IOException {
         final ByteBuffer key = ByteBuffer.wrap(id.getBytes(Charsets.UTF_8));
-
+        Response response = null;
         switch (request.getMethod()) {
             case Request.METHOD_GET:
-                sendResponse(handleGet(key), session);
+                response = handleGet(key);
                 break;
             case Request.METHOD_PUT:
-                sendResponse(handlePut(request, key), session);
+                response = handlePut(request, key);
                 break;
             case Request.METHOD_DELETE:
-                sendResponse(handleDelete(key), session);
+                response = handleDelete(key);
                 break;
             default:
-                sendResponse(new Response(Response.METHOD_NOT_ALLOWED, Response.EMPTY), session);
+                response = new Response(Response.METHOD_NOT_ALLOWED, Response.EMPTY);
                 break;
         }
+        return response;
     }
 
     /**
@@ -159,6 +370,12 @@ public class CustomServer extends HttpServer implements Service {
             value.get(body);
             return new Response(Response.OK, body);
         } catch (NoSuchElementException e) {
+         /*   for(Map.Entry<String,HttpClient> node: clusterPool.entrySet())
+            {
+                final Request request = node.getValue().createRequest(Request.METHOD_GET,node.getKey());
+                setServiceMarkerHeader(request);
+                Response response = node.getValue().invoke(request,TIMEOUT);
+            }*/
             return new Response(Response.NOT_FOUND, "Key not found".getBytes(Charsets.UTF_8));
         }
     }
@@ -171,6 +388,31 @@ public class CustomServer extends HttpServer implements Service {
     private Response handleDelete(final ByteBuffer key) throws IOException {
         dao.remove(key);
         return new Response(Response.ACCEPTED, Response.EMPTY);
+    }
+
+  /*  private void setTimestamp(final Request request, final long timestamp) {
+        request.addHeader(TIMESTAMP_HEADER + timestamp);
+    }
+
+    private long getTimestamp(final Request request) {
+        final String header = request.getHeader(TIMESTAMP_HEADER);
+        if (header == null) {
+            return System.currentTimeMillis();
+        }
+        return Long.parseLong(header);
+        // request.addHeader(TIMESTAMP_HEADER + timestamp);
+    }*/
+
+    private boolean getServiceMarkerHeader(final Request request) {
+        final String header = request.getHeader(SERVICE_REQUEST_HEADER);
+        if (header == null) {
+            return false;
+        }
+        return Boolean.parseBoolean(header);
+    }
+
+    private void setServiceMarkerHeader(final Request request) {
+        request.addHeader(SERVICE_REQUEST_HEADER + "true");
     }
 
     private static HttpServerConfig getConfig(final int port) {

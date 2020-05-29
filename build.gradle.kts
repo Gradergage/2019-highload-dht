@@ -1,9 +1,9 @@
-import net.ltgt.gradle.errorprone.errorprone
+//import net.ltgt.gradle.errorprone.errorprone
 
 plugins {
     java
     application
-    id("net.ltgt.errorprone") version "0.8.1"
+   // id("net.ltgt.errorprone") version "0.8.1"
 }
 
 java {
@@ -18,7 +18,7 @@ repositories {
 
 dependencies {
     // Checks
-    errorprone("com.google.errorprone:error_prone_core:2.3.3")
+   // errorprone("com.google.errorprone:error_prone_core:2.3.3")
 
     // Our beloved one-nio
     compile("ru.odnoklassniki:one-nio:1.2.0")
@@ -64,6 +64,7 @@ tasks.withType<JavaCompile> {
 }
 
 // Error prone options
+/*
 tasks.named<JavaCompile>("compileTestJava") {
     options.errorprone.isEnabled.set(false)
-}
+}*/

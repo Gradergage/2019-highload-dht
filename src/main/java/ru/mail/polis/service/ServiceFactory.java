@@ -55,7 +55,8 @@ public final class ServiceFactory {
         if (port <= 0 || 65536 <= port) {
             throw new IllegalArgumentException("Port out of range");
         }
-
-        return new CustomServer(port,dao);
+        final String currentNode = "http://localhost:" + port;
+        final Topology cluster = new Topology(currentNode, topology);
+        return new CustomServer(port, dao, cluster);
     }
 }
