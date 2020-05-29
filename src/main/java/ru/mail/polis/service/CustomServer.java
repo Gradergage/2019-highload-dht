@@ -20,7 +20,11 @@ import ru.mail.polis.utils.CompletableFutureExecutor;
 import ru.mail.polis.utils.RocksByteBufferUtils;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -140,7 +144,6 @@ public class CustomServer extends HttpServer implements Service {
 
         final List<CompletableFuture<Response>> responses = new ArrayList<>();
 
-
         for (String n : topology.getNodes()) {
             if (topology.isCurrentNode(node)) {
                 responses.add(processLocally(id, request));
@@ -196,16 +199,39 @@ public class CustomServer extends HttpServer implements Service {
         final CompletableFuture<Response> response = new CompletableFuture<>();
         setServiceMarkerHeader(request);
         try {
+            //?????
             final Response r = clusterPool.get(node).invoke(request, TIMEOUT);
             System.out.println("answering onNode:" + port);
             response.complete(r);
         } catch (IOException | InterruptedException | PoolException | HttpException e) {
-            System.out.println("exceptionally onNode:" + port + " "+e.getMessage());
+            System.out.println("exceptionally onNode:" + port + " " + e.getMessage());
             response.completeExceptionally(e);
         }
         return response;
     }
-
+    public static CompletableFuture<ResponseRepresentation> proxy(final String id,
+                                                                                                    @NotNull final Request request,
+                                                                                                    final long timestamp,
+                                                                                                    final String node,
+                                                                                                    final java.net.http.HttpClient client) {
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                .uri(URI.create(node + "/v0/entity?id=" + id))
+                .timeout(Duration.ofMillis(100))
+                .setHeader("X-Service-Request", "true")
+                .setHeader("X-TIMESTAMP", Long.toString(timestamp));
+        if (request.getMethod() == Request.METHOD_GET) {
+            requestBuilder = requestBuilder.GET();
+        } else if (request.getMethod() == Request.METHOD_PUT) {
+            requestBuilder = requestBuilder.PUT(HttpRequest.BodyPublishers.ofByteArray(request.getBody()));
+        } else if (request.getMethod() == Request.METHOD_DELETE) {
+            requestBuilder = requestBuilder.DELETE();
+        } else {
+            throw new IllegalStateException();
+        }
+        final HttpRequest httpRequest = requestBuilder.build();
+        return client.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofByteArray())
+                .thenApply(ResponseRepresentation::create);
+    }
     private CompletableFuture<Response> processLocally(@NotNull final String id, @NotNull final Request request) {
         final CompletableFuture<Response> response = new CompletableFuture<>();
         setServiceMarkerHeader(request);
@@ -214,7 +240,7 @@ public class CustomServer extends HttpServer implements Service {
             System.out.println("answeringLocally:" + port);
             response.complete(r);
         } catch (IOException e) {
-            System.out.println("exceptionallyLocally:" + port);
+            System.out.println("exceptionallyLocally:" + port + " " + e.getMessage());
             response.completeExceptionally(e);
         }
         return response;
@@ -233,17 +259,17 @@ public class CustomServer extends HttpServer implements Service {
         }
         switch (request.getMethod()) {
             case Request.METHOD_GET: {
-                ByteBuffer record = null;
+                byte[] record = null;
                 for (final Response response : responses) {
                     if (response.getStatus() != 200) {
                         continue;
                     }
-                    record = RocksByteBufferUtils.fromUnsignedByteArray(response.getBody());
+                    record = response.getBody();
                 }
                 if (record == null) {
                     return new Response(Response.NOT_FOUND, Response.EMPTY);
                 } else {
-                    final byte[] value = RocksByteBufferUtils.copyByteBuffer(record);
+                    final byte[] value = record;
                     return Response.ok(value);
                 }
             }
@@ -263,6 +289,7 @@ public class CustomServer extends HttpServer implements Service {
             session.sendError(Response.INTERNAL_ERROR, message);
         } catch (IOException e) {
             log.error("Error", e);
+            System.out.println("error" + e.getMessage());
         }
     }
 
