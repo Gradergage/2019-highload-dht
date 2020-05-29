@@ -103,4 +103,8 @@ public interface DAO extends Closeable {
     default void compact() throws IOException {
         // Implement me when you get to stage 3
     }
+    @NotNull
+    ExtendedRecord getRecord(@NotNull final ByteBuffer key) throws IOException,NoSuchElementException;
+
+    void upsertRecord(@NotNull final ByteBuffer key, @NotNull final ExtendedRecord value) throws IOException;
 }

@@ -62,8 +62,37 @@ public class DAOImplementation implements DAO {
     @NotNull
     @Override
     public ByteBuffer get(@NotNull final ByteBuffer key) throws IOException, NoSuchElementException {
+        final ExtendedRecord record = getRecord(key);
+        if (record.isDeleted()) {
+            throw new NoSuchElementException();
+        }
+        return record.getValue();
+    }
+
+    @Override
+    public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) throws IOException {
+        upsertRecord(key, new ExtendedRecord(value, System.currentTimeMillis(), false));
+    }
+
+    @Override
+    public void remove(@NotNull final ByteBuffer key) throws IOException {
+        upsertRecord(key, new ExtendedRecord(ByteBuffer.allocate(0), System.currentTimeMillis(), true));
+    }
+
+    @Override
+    public void compact() throws IOException {
+        try {
+            db.compactRange();
+        } catch (RocksDBException e) {
+            throw new FastIOException(e);
+        }
+    }
+
+    @NotNull
+    @Override
+    public ExtendedRecord getRecord(@NotNull ByteBuffer key) throws IOException, NoSuchElementException {
         final ByteBuffer tempKey = RocksByteBufferUtils.toUnsignedByteArray(key);
-        byte[] res = null;
+        byte[] res;
         try {
             res = db.get(RocksByteBufferUtils.copyByteBuffer(tempKey));
         } catch (RocksDBException e) {
@@ -72,37 +101,15 @@ public class DAOImplementation implements DAO {
         if (res == null) {
             throw new FastNoSuchElementException();
         }
-        return ByteBuffer.wrap(res);
+
+        return ExtendedRecord.fromBytes(res);
     }
 
     @Override
-    public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) throws IOException {
+    public void upsertRecord(@NotNull ByteBuffer key, @NotNull ExtendedRecord value) throws IOException {
         final ByteBuffer tempKey = RocksByteBufferUtils.toUnsignedByteArray(key);
         try {
-            final byte[] res = db.get(RocksByteBufferUtils.copyByteBuffer(tempKey));
-            if (res != null) {
-                db.delete(RocksByteBufferUtils.copyByteBuffer(tempKey));
-            }
-            db.put(RocksByteBufferUtils.copyByteBuffer(tempKey), RocksByteBufferUtils.copyByteBuffer(value));
-        } catch (RocksDBException e) {
-            throw new FastIOException(e);
-        }
-    }
-
-    @Override
-    public void remove(@NotNull final ByteBuffer key) throws IOException {
-        final ByteBuffer tempKey = RocksByteBufferUtils.toUnsignedByteArray(key);
-        try {
-            db.delete(RocksByteBufferUtils.copyByteBuffer(tempKey));
-        } catch (RocksDBException e) {
-            throw new FastIOException(e);
-        }
-    }
-
-    @Override
-    public void compact() throws IOException {
-        try {
-            db.compactRange();
+            db.put(RocksByteBufferUtils.copyByteBuffer(tempKey), value.toBytes());
         } catch (RocksDBException e) {
             throw new FastIOException(e);
         }

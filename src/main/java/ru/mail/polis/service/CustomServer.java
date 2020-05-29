@@ -15,8 +15,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import ru.mail.polis.Record;
 import ru.mail.polis.dao.DAO;
+import ru.mail.polis.dao.ExtendedRecord;
 import ru.mail.polis.dao.StreamHttpSession;
 import ru.mail.polis.utils.CompletableFutureExecutor;
+import ru.mail.polis.utils.RocksByteBufferUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -138,7 +140,7 @@ public class CustomServer extends HttpServer implements Service {
 
         final List<CompletableFuture<Response>> responses = new ArrayList<>();
 
-        for (String n : topology.selectNodePool(id,replicas.getFrom())) {
+        for (String n : topology.selectNodePool(id, replicas.getFrom())) {
             if (topology.isCurrentNode(n)) {
                 responses.add(processLocally(id, request));
             } else {
@@ -231,17 +233,20 @@ public class CustomServer extends HttpServer implements Service {
         }
         switch (request.getMethod()) {
             case Request.METHOD_GET: {
-                byte[] record = null;
+                ExtendedRecord newest = null;
                 for (final Response response : responses) {
                     if (response.getStatus() != 200) {
                         continue;
                     }
-                    record = response.getBody();
+                    final ExtendedRecord record = ExtendedRecord.fromBytes(response.getBody());
+                    if (newest == null || record.getTimestamp() > newest.getTimestamp()) {
+                        newest = record;
+                    }
                 }
-                if (record == null) {
+                if (newest == null || newest.isDeleted()) {
                     return new Response(Response.NOT_FOUND, Response.EMPTY);
                 } else {
-                    final byte[] value = record;
+                    final byte[] value = RocksByteBufferUtils.copyByteBuffer(newest.getValue());
                     return Response.ok(value);
                 }
             }
@@ -364,10 +369,11 @@ public class CustomServer extends HttpServer implements Service {
 
     private Response handleGet(final ByteBuffer key) throws IOException {
         try {
-            final ByteBuffer value = dao.get(key);
-            final byte[] body = new byte[value.remaining()];
-            value.get(body);
-            return new Response(Response.OK, body);
+//            final ByteBuffer value = dao.get(key);
+//            final byte[] body = new byte[value.remaining()];
+//            value.get(body);
+            ExtendedRecord record = dao.getRecord(key);
+            return new Response(Response.OK, record.toBytes());
         } catch (NoSuchElementException e) {
          /*   for(Map.Entry<String,HttpClient> node: clusterPool.entrySet())
             {
