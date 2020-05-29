@@ -1,23 +1,18 @@
 package ru.mail.polis.service;
 
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Range;
-import com.google.common.collect.RangeMap;
-import com.google.common.collect.TreeRangeMap;
+import com.google.common.base.Charsets;
+import com.google.common.collect.*;
 import com.google.common.hash.Hashing;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class Topology {
     private final String currentNode;
     private final List<String> nodes;
-    private final RangeMap<Integer, String> nodesTable;
+    private final TreeRangeMap<Integer, String> nodesTable;
 
     private static final int PART_SIZE = 1 << 22;
     private static final int PARTS_NUMBER = 1 << (Integer.SIZE - 22);
@@ -31,8 +26,8 @@ public class Topology {
         this.nodesTable = createTable();
     }
 
-    private RangeMap<Integer, String> createTable() {
-        final RangeMap<Integer, String> table = TreeRangeMap.create();
+    private TreeRangeMap<Integer, String> createTable() {
+        final TreeRangeMap<Integer, String> table = TreeRangeMap.create();
         final Iterator<String> nodeIterator = Iterators.cycle(nodes);
         for (int i = 0; i < PARTS_NUMBER; i++) {
             final String node = nodeIterator.next();
@@ -65,7 +60,20 @@ public class Topology {
         }
         return node;
     }
-
+    public List<String> selectNodePool(@NotNull final String keyString, final int numOfNodes) {
+        final ByteBuffer key = ByteBuffer.wrap(keyString.getBytes(Charsets.UTF_8));
+        final int keyHash = Hashing.sha256().hashBytes(key.duplicate()).asInt();
+        final String node = this.nodesTable.get(keyHash);
+        final List<String> resultNodes = new ArrayList<>(numOfNodes);
+        final PeekingIterator<String> iterator = Iterators.peekingIterator(Iterators.cycle(nodes));
+        while (!iterator.peek().equals(node)) {
+            iterator.next();
+        }
+        for (int i = 0; i < numOfNodes; i++) {
+            resultNodes.add(iterator.next());
+        }
+        return resultNodes;
+    }
     public Set<String> getNodes() {
         return new HashSet<>(nodes);
     }

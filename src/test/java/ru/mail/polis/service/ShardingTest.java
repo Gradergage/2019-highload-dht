@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * @author Vadim Tsesko
  */
 class ShardingTest extends ClusterTestBase {
-    private static final Duration TIMEOUT = Duration.ofMinutes(1);
+    private static final Duration TIMEOUT = Duration.ofSeconds(5);
     private int port0;
     private int port1;
     private File data0;

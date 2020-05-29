@@ -17,16 +17,11 @@ import ru.mail.polis.Record;
 import ru.mail.polis.dao.DAO;
 import ru.mail.polis.dao.StreamHttpSession;
 import ru.mail.polis.utils.CompletableFutureExecutor;
-import ru.mail.polis.utils.RocksByteBufferUtils;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
-import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class CustomServer extends HttpServer implements Service {
@@ -138,14 +133,13 @@ public class CustomServer extends HttpServer implements Service {
                                       final HttpSession session,
                                       final long timestamp) {
         final ByteBuffer key = ByteBuffer.wrap(id.getBytes(Charsets.UTF_8));
-        final String node = topology.getNode(key);
 
         //  System.out.println("on node " + port);
 
         final List<CompletableFuture<Response>> responses = new ArrayList<>();
 
-        for (String n : topology.getNodes()) {
-            if (topology.isCurrentNode(node)) {
+        for (String n : topology.selectNodePool(id,replicas.getFrom())) {
+            if (topology.isCurrentNode(n)) {
                 responses.add(processLocally(id, request));
             } else {
                 responses.add(processOnNode(n, request));
@@ -209,29 +203,7 @@ public class CustomServer extends HttpServer implements Service {
         }
         return response;
     }
-    public static CompletableFuture<ResponseRepresentation> proxy(final String id,
-                                                                                                    @NotNull final Request request,
-                                                                                                    final long timestamp,
-                                                                                                    final String node,
-                                                                                                    final java.net.http.HttpClient client) {
-        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-                .uri(URI.create(node + "/v0/entity?id=" + id))
-                .timeout(Duration.ofMillis(100))
-                .setHeader("X-Service-Request", "true")
-                .setHeader("X-TIMESTAMP", Long.toString(timestamp));
-        if (request.getMethod() == Request.METHOD_GET) {
-            requestBuilder = requestBuilder.GET();
-        } else if (request.getMethod() == Request.METHOD_PUT) {
-            requestBuilder = requestBuilder.PUT(HttpRequest.BodyPublishers.ofByteArray(request.getBody()));
-        } else if (request.getMethod() == Request.METHOD_DELETE) {
-            requestBuilder = requestBuilder.DELETE();
-        } else {
-            throw new IllegalStateException();
-        }
-        final HttpRequest httpRequest = requestBuilder.build();
-        return client.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofByteArray())
-                .thenApply(ResponseRepresentation::create);
-    }
+
     private CompletableFuture<Response> processLocally(@NotNull final String id, @NotNull final Request request) {
         final CompletableFuture<Response> response = new CompletableFuture<>();
         setServiceMarkerHeader(request);
