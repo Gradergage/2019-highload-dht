@@ -86,7 +86,7 @@ public class CustomServer extends HttpServer implements Service {
             sendResponse(new Response(Response.BAD_REQUEST, "Query requires id".getBytes(Charsets.UTF_8)), session);
             return;
         }
-        System.out.println("on node [" + port + "] | is service:" + getServiceMarkerHeader(request));
+      //  System.out.println("on node [" + port + "] | is service:" + getServiceMarkerHeader(request));
 
         if (getServiceMarkerHeader(request)) {
             asyncExecute(() -> {
@@ -141,7 +141,7 @@ public class CustomServer extends HttpServer implements Service {
                         res -> {
                             //TODO
                             try {
-                                System.out.println("answering:" + port);
+                              //  System.out.println("answering:" + port);
                                 session.sendResponse(extractReplicasResponse(request, replicas.getAck(), res));
                             } catch (IOException e) {
                                 sendError(session, e.getMessage());
@@ -151,11 +151,11 @@ public class CustomServer extends HttpServer implements Service {
                 .exceptionally(e -> {
                     try {
 
-                        System.out.println("gateway timeout:" + port);
+                        //System.out.println("gateway timeout:" + port);
                         session.sendResponse(new Response(Response.GATEWAY_TIMEOUT, Response.EMPTY));
                     } catch (IOException ex) {
 
-                        System.out.println("error:" + port);
+                      //  System.out.println("error:" + port);
                         sendError(session, ex.getMessage());
                     }
                     return null;
@@ -169,10 +169,10 @@ public class CustomServer extends HttpServer implements Service {
         try {
             //?????
             final Response r = clusterPool.get(node).invoke(request, TIMEOUT);
-            System.out.println("answering onNode:" + port);
+          //  System.out.println("answering onNode:" + port);
             response.complete(r);
         } catch (IOException | InterruptedException | PoolException | HttpException e) {
-            System.out.println("exceptionally onNode:" + port + " " + e.getMessage());
+          //  System.out.println("exceptionally onNode:" + port + " " + e.getMessage());
             response.completeExceptionally(e);
         }
         return response;
@@ -183,10 +183,10 @@ public class CustomServer extends HttpServer implements Service {
         setServiceMarkerHeader(request);
         try {
             final Response r = handleEntityRequest(id, request);
-            System.out.println("answeringLocally:" + port);
+         //   System.out.println("answeringLocally:" + port);
             response.complete(r);
         } catch (IOException e) {
-            System.out.println("exceptionallyLocally:" + port + " " + e.getMessage());
+         //   System.out.println("exceptionallyLocally:" + port + " " + e.getMessage());
             response.completeExceptionally(e);
         }
         return response;
@@ -260,7 +260,7 @@ public class CustomServer extends HttpServer implements Service {
             session.sendError(Response.INTERNAL_ERROR, message);
         } catch (IOException e) {
             log.error("Error", e);
-            System.out.println("error" + e.getMessage());
+       //     System.out.println("error" + e.getMessage());
         }
     }
 
