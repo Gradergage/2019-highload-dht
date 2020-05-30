@@ -34,6 +34,7 @@ public final class RocksRecordIter implements Iterator<Record>, Closeable {
 
     @Override
     public boolean hasNext() {
+        skipDeleted();
         return rocksIterator.isValid();
     }
 
@@ -41,7 +42,7 @@ public final class RocksRecordIter implements Iterator<Record>, Closeable {
         while (rocksIterator.isValid()) {
             ExtendedRecord record = ExtendedRecord.fromBytes(rocksIterator.value());
             if (record.isDeleted())
-                this.next();
+                rocksIterator.next();
             else
                 break;
 
@@ -55,9 +56,7 @@ public final class RocksRecordIter implements Iterator<Record>, Closeable {
         final Record current = Record.of(
                 RocksByteBufferUtils.fromUnsignedByteArray(rocksIterator.key()),
                 record.getValue());
-        if (rocksIterator.isValid()) {
-            rocksIterator.next();
-        }
+        rocksIterator.next();
         skipDeleted();
         /* RocksDB already has the selected element, so we need return it in next()
          at first time and in future */

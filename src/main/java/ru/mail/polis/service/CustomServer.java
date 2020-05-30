@@ -21,7 +21,11 @@ import ru.mail.polis.utils.CompletableFutureExecutor;
 import ru.mail.polis.utils.RocksByteBufferUtils;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -36,6 +40,7 @@ public class CustomServer extends HttpServer implements Service {
     private final Map<String, HttpClient> clusterPool;
     private static final int TIMEOUT = 100;
     private final Topology topology;
+    private final java.net.http.HttpClient httpClient;
 
     public CustomServer(final int port, @NotNull final DAO dao, final Topology topology) throws IOException {
         super(getConfig(port));
@@ -46,6 +51,7 @@ public class CustomServer extends HttpServer implements Service {
                 .collect(Collectors.toMap(
                         node -> node,
                         node -> new HttpClient(new ConnectionString(node + "?timeout=" + TIMEOUT))));
+        this.httpClient = java.net.http.HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build();
     }
 
     @Override
@@ -144,7 +150,8 @@ public class CustomServer extends HttpServer implements Service {
             if (topology.isCurrentNode(n)) {
                 responses.add(processLocally(id, request));
             } else {
-                responses.add(processOnNode(n, request));
+                //    responses.add(processOnNode(n, request));
+                responses.add(processNoNio(id, request, timestamp, n, httpClient));
             }
         }
 
@@ -218,6 +225,30 @@ public class CustomServer extends HttpServer implements Service {
             response.completeExceptionally(e);
         }
         return response;
+    }
+
+    public static CompletableFuture<Response> processNoNio(final String id,
+                                                           @NotNull final Request request,
+                                                           final long timestamp,
+                                                           final String node,
+                                                           final java.net.http.HttpClient client) {
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                .uri(URI.create(node + "/v0/entity?id=" + id))
+                .timeout(Duration.ofMillis(100))
+                .setHeader("X-Service-Request", "true")
+                .setHeader("X-TIMESTAMP", Long.toString(timestamp));
+        if (request.getMethod() == Request.METHOD_GET) {
+            requestBuilder = requestBuilder.GET();
+        } else if (request.getMethod() == Request.METHOD_PUT) {
+            requestBuilder = requestBuilder.PUT(HttpRequest.BodyPublishers.ofByteArray(request.getBody()));
+        } else if (request.getMethod() == Request.METHOD_DELETE) {
+            requestBuilder = requestBuilder.DELETE();
+        } else {
+            throw new IllegalStateException();
+        }
+        final HttpRequest httpRequest = requestBuilder.build();
+        return client.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofByteArray())
+                .thenApply(res -> new Response("" + res.statusCode(), RocksByteBufferUtils.copyByteBuffer(ExtendedRecord.fromBytes(res.body()).getValue())));
     }
 
     private Response extractReplicasResponse(@NotNull final Request request,
@@ -369,18 +400,10 @@ public class CustomServer extends HttpServer implements Service {
 
     private Response handleGet(final ByteBuffer key) throws IOException {
         try {
-//            final ByteBuffer value = dao.get(key);
-//            final byte[] body = new byte[value.remaining()];
-//            value.get(body);
+
             ExtendedRecord record = dao.getRecord(key);
             return new Response(Response.OK, record.toBytes());
         } catch (NoSuchElementException e) {
-         /*   for(Map.Entry<String,HttpClient> node: clusterPool.entrySet())
-            {
-                final Request request = node.getValue().createRequest(Request.METHOD_GET,node.getKey());
-                setServiceMarkerHeader(request);
-                Response response = node.getValue().invoke(request,TIMEOUT);
-            }*/
             return new Response(Response.NOT_FOUND, "Key not found".getBytes(Charsets.UTF_8));
         }
     }
