@@ -1,25 +1,24 @@
 # Яндекс танк
 
 #### 1. Лента с PUT с уникальными ключами
-[Стреляем линейно](https://overload.yandex.net/276915).
-[Стреляем константно](https://overload.yandex.net/276919).
+[line](https://overload.yandex.net/276915) |
+[const](https://overload.yandex.net/276919)
 
 #### 2. Лента с PUT с частичной перезаписью ключей (вероятность 10%)
-[Стреляем линейно](https://overload.yandex.net/276923). 
-[Стреляем константно](https://overload.yandex.net/276924).
+[line](https://overload.yandex.net/276923) |
+[const](https://overload.yandex.net/276924)
 
-Видно, что при 10% перезаписи ключей сервер может обрабатывать на 5% меньше запросов. 
 
 #### 3. Лента с GET существующих ключей с равномерным распределением (стреляем по наполненной БД)
-[Стреляем линейно](https://overload.yandex.net/276926).
-[Стреляем константно](https://overload.yandex.net/276929).
+[line](https://overload.yandex.net/276926) |
+[const](https://overload.yandex.net/276929)
 
 #### 4. Лента со смещением распределения GET к недавно добавленным ключам (частый случай на практике)
 Смещение распределения выполняется следующим образом: 20% запросов будут от 0 до 90% по временной шкале put-ов, 80% запросов будут от 90% до 100% по временной шкале put-ов.
  
-[Стреляем линейно](https://overload.yandex.net/276930). 
-[Стреляем константно](https://overload.yandex.net/276933).
+[line](https://overload.yandex.net/276930) |
+[const](https://overload.yandex.net/276933)
 
 #### 5. Лента со смешанной нагрузкой с 50% PUT новых ключей и 50% GET существующих ключей (равномерное распределение)
-[Стреляем линейно](https://overload.yandex.net/276936).
-[Стреляем константно](https://overload.yandex.net/276935).
+[line](https://overload.yandex.net/276936) |
+[const](https://overload.yandex.net/276935)
