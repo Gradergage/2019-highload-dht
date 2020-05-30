@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * @author Vadim Tsesko
  */
 class ShardingTest extends ClusterTestBase {
-    private static final Duration TIMEOUT = Duration.ofSeconds(15);
+    private static final Duration TIMEOUT = Duration.ofSeconds(60);
     private int port0;
     private int port1;
     private File data0;
@@ -233,31 +233,37 @@ class ShardingTest extends ClusterTestBase {
             assertEquals(201, upsert(1, key, value, 1, 1).getStatus());
 
             int copies = 0;
-
+            System.out.println("Stage 1");
             // Stop node 0
             stop(0, storage0);
 
+            System.out.println("Stage 2");
             // Check
             if (get(1, key, 1, 1).getStatus() == 200) {
                 copies++;
             }
 
+            System.out.println("Stage 3");
             // Start node 0
             storage0 = ServiceFactory.create(port0, dao0, endpoints);
             start(0, storage0);
 
+            System.out.println("Stage 4");
             // Stop node 1
             stop(1, storage1);
 
+            System.out.println("Stage 5");
             // Check
             if (get(0, key, 1, 1).getStatus() == 200) {
                 copies++;
             }
 
+            System.out.println("Stage 6");
             // Start node 1
             storage1 = ServiceFactory.create(port1, dao1, endpoints);
             start(1, storage1);
 
+            System.out.println("Stage 7");
             // Check
             assertEquals(1, copies);
         });

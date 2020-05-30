@@ -35,7 +35,6 @@ public class CustomServer extends HttpServer implements Service {
     private static final Log log = LogFactory.getLog(CustomServer.class);
     private final DAO dao;
 
-    //private static final String TIMESTAMP_HEADER = "X-Service-Timestamp:";
     private static final String SERVICE_REQUEST_HEADER = "X-Service-Request:";
     private final Map<String, HttpClient> clusterPool;
     private static final int TIMEOUT = 100;
@@ -116,23 +115,6 @@ public class CustomServer extends HttpServer implements Service {
             executeEntityRequest(id, replicasObj, request, session, timestamp);
         });
 
-     /*   final ByteBuffer key = ByteBuffer.wrap(id.getBytes(Charsets.UTF_8));
-        final String node = topology.getNode(key);
-        //if (ackFrom[0] == 1 && ackFrom[1] == 1) {
-        asyncExecute(() -> {
-            try {
-                if (topology.isCurrentNode(node) || getServiceMarkerHeader(request)) {
-                    sendResponse(handleEntityRequest(id, request), session);
-                } else {
-                    setServiceMarkerHeader(request);
-                    sendResponse(clusterPool.get(node).invoke(request, TIMEOUT), session);
-                }
-            } catch (IOException | InterruptedException | PoolException exception) {
-                sendResponse(new Response(Response.INTERNAL_ERROR, Response.EMPTY), session);
-            } catch (HttpException e) {
-                sendResponse(new Response(Response.BAD_REQUEST, "Not enough replicas".getBytes(Charsets.UTF_8)), session);
-            }
-        });*/
     }
 
     private void executeEntityRequest(final String id,
@@ -142,16 +124,14 @@ public class CustomServer extends HttpServer implements Service {
                                       final long timestamp) {
         final ByteBuffer key = ByteBuffer.wrap(id.getBytes(Charsets.UTF_8));
 
-        //  System.out.println("on node " + port);
-
         final List<CompletableFuture<Response>> responses = new ArrayList<>();
 
         for (String n : topology.selectNodePool(id, replicas.getFrom())) {
             if (topology.isCurrentNode(n)) {
                 responses.add(processLocally(id, request));
             } else {
-                //    responses.add(processOnNode(n, request));
-                responses.add(processNoNio(id, request, timestamp, n, httpClient));
+                //  responses.add(processOnNode(n, request));
+                responses.add(processNoNio(id, request, n, httpClient));
             }
         }
 
@@ -180,21 +160,6 @@ public class CustomServer extends HttpServer implements Service {
                     }
                     return null;
                 });
-
-      /*  asyncExecute(() -> {
-            try {
-                if (topology.isCurrentNode(node) || getServiceMarkerHeader(request)) {
-                    sendResponse(handleEntityRequest(id, request), session);
-                } else {
-                    setServiceMarkerHeader(request);
-                    sendResponse(clusterPool.get(node).invoke(request, TIMEOUT), session);
-                }
-            } catch (IOException | InterruptedException | PoolException exception) {
-                sendResponse(new Response(Response.INTERNAL_ERROR, Response.EMPTY), session);
-            } catch (HttpException e) {
-                sendResponse(new Response(Response.BAD_REQUEST, "Not enough replicas".getBytes(Charsets.UTF_8)), session);
-            }
-        });*/
 
     }
 
@@ -229,14 +194,12 @@ public class CustomServer extends HttpServer implements Service {
 
     public static CompletableFuture<Response> processNoNio(final String id,
                                                            @NotNull final Request request,
-                                                           final long timestamp,
                                                            final String node,
                                                            final java.net.http.HttpClient client) {
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(node + "/v0/entity?id=" + id))
                 .timeout(Duration.ofMillis(100))
-                .setHeader("X-Service-Request", "true")
-                .setHeader("X-TIMESTAMP", Long.toString(timestamp));
+                .setHeader("X-Service-Request", "true");
         if (request.getMethod() == Request.METHOD_GET) {
             requestBuilder = requestBuilder.GET();
         } else if (request.getMethod() == Request.METHOD_PUT) {
@@ -248,7 +211,7 @@ public class CustomServer extends HttpServer implements Service {
         }
         final HttpRequest httpRequest = requestBuilder.build();
         return client.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofByteArray())
-                .thenApply(res -> new Response("" + res.statusCode(), RocksByteBufferUtils.copyByteBuffer(ExtendedRecord.fromBytes(res.body()).getValue())));
+                .thenApply(res -> new Response("" + res.statusCode(), res.body()));
     }
 
     private Response extractReplicasResponse(@NotNull final Request request,
@@ -328,7 +291,7 @@ public class CustomServer extends HttpServer implements Service {
 
     private Response handleEntityRequest(@NotNull final String id, @NotNull final Request request) throws IOException {
         final ByteBuffer key = ByteBuffer.wrap(id.getBytes(Charsets.UTF_8));
-        Response response = null;
+        Response response;
         switch (request.getMethod()) {
             case Request.METHOD_GET:
                 response = handleGet(key);
@@ -436,7 +399,8 @@ public class CustomServer extends HttpServer implements Service {
         if (header == null) {
             return false;
         }
-        return Boolean.parseBoolean(header);
+        // return Boolean.parseBoolean(header);
+        return Boolean.parseBoolean(header.strip());
     }
 
     private void setServiceMarkerHeader(final Request request) {
