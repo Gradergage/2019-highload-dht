@@ -5,6 +5,7 @@
 !.gitignore
 !*.java
 !README.md
+!yandexTank.md
 !LICENSE
 !gradlew.bat
 !gradlew
